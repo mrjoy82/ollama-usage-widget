@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # macbook-sync-cookie.sh
 # Run this on your MacBook when the Ollama cookie expires.
-# It prompts for the cookie value from Chrome DevTools, copies it to the Pi,
+# It copies the cookie from your clipboard (pbpaste) to the Pi,
 # sets permissions, and restarts the scraper.
 #
 # Prerequisites:
 #   - 'TAgent' SSH alias works from this MacBook
 #   - You are logged into Tailscale
-#   - The Pi has the ollama-widget-scraper systemd service (or you are in prototype mode)
+#   - You have already copied the _ollama_session cookie value to your clipboard
 #
 # Usage:
 #   chmod +x macbook-sync-cookie.sh
@@ -21,7 +21,9 @@ PI_PATH="/home/matthieu/.config/ollama-widget/cookie.txt"
 echo "Ollama Cookie Sync: MacBook → Pi"
 echo "================================="
 echo ""
-echo "HOW TO COPY THE COOKIE FROM CHROME:"
+echo "This script reads the cookie value from your macOS clipboard."
+echo ""
+echo "BEFORE RUNNING THIS SCRIPT, you must copy the cookie from Chrome:"
 echo ""
 echo "  1. Open Chrome and go to: https://ollama.com/settings"
 echo "  2. Make sure you are LOGGED IN (the page should show your usage)"
@@ -29,18 +31,29 @@ echo "  3. Press F12 (or right-click anywhere → Inspect)"
 echo "  4. Click the 'Application' tab at the top of DevTools"
 echo "  5. In the left sidebar, expand: Cookies → https://ollama.com"
 echo "  6. Look for the row with Name: _ollama_session"
-echo "  7. Click that row, then double-click the VALUE column"
-echo "  8. The value is a long random string (may be 100+ characters)"
-echo "  9. Copy it with Cmd+C"
+echo "  7. Double-click the VALUE column — it is a long random string"
+echo "  8. Press Cmd+C to copy it to your clipboard"
 echo ""
-echo "Paste that value below — just the long random string, no quotes,"
-echo "no 'name=' prefix. The script will format it for the Pi."
+echo "Then run this script. It will paste from your clipboard automatically."
 echo ""
 
-read -rp "Cookie value: " cookie_value
+# macOS has pbpaste; if not available, fallback to manual temp file
+if command -v pbpaste &>/dev/null; then
+    echo "Reading from clipboard..."
+    cookie_value=$(pbpaste | tr -d '\n\r')
+else
+    echo "pbpaste not found. Falling back to manual temp file."
+    tmpfile=$(mktemp)
+    echo "A temp file has been created at: $tmpfile"
+    echo "Open it in your editor, paste the cookie value, save and close."
+    read -rp "Press Enter to open ${EDITOR:-nano}..."
+    ${EDITOR:-nano} "$tmpfile"
+    cookie_value=$(cat "$tmpfile" | tr -d '\n\r')
+    rm -f "$tmpfile"
+fi
 
 if [[ -z "$cookie_value" ]]; then
-    echo "ERROR: No value provided. Aborting." >&2
+    echo "ERROR: Clipboard is empty or temp file is empty. Aborting." >&2
     exit 1
 fi
 
@@ -48,6 +61,7 @@ fi
 full_cookie="_ollama_session=${cookie_value}"
 
 echo ""
+echo "Cookie value length: ${#cookie_value} characters"
 echo "Copying to Pi (${PI_HOST})..."
 
 # Create temp file locally, scp it, then ssh to move and restart
