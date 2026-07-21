@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Cache / runtime data (never commit cookies or live usage data)
+*.json
+*.txt
+cookie*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
