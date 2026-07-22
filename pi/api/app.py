@@ -113,6 +113,16 @@ def usage():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    # Warm start: if cache is stale or missing, run scraper once on startup
+    cache = load_cache()
+    if not cache or is_stale(cache):
+        print("[prototype-api] Cache stale or missing on startup, triggering scraper...")
+        ok, out = run_scraper()
+        if ok:
+            print("[prototype-api] Warm-start scraper succeeded.")
+        else:
+            print("[prototype-api] Warm-start scraper failed:", out)
+
     print(f"[prototype-api] Starting on http://0.0.0.0:{PORT}")
     print(f"[prototype-api] Cache: {CACHE_PATH}")
     print(f"[prototype-api] Scraper: {SCRAPER_SCRIPT}")
